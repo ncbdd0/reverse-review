@@ -754,10 +754,13 @@ async function openReader(name, bytes){
     </div><div class="reader-pages" id="rd-pages"></div>`);
   $('#rd-close').onclick = () => { destroyReader(); closeModal(); };
   $('#rd-dl').onclick = () => { const url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'})); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),4000); };
+  const indEl = $('#rd-ind'), pagesEl = $('#rd-pages');
+  const alive = () => indEl && indEl.isConnected && reader.pdf !== null;
+  reader.pdf = null;
   const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+  if (!alive()) { destroyReader(); return; } // 阅读器已被用户关闭，放弃渲染
   reader.pdf = pdf; reader.page = 1;
-  $('#rd-ind').textContent = `1 / ${pdf.numPages}`;
-  const pagesEl = $('#rd-pages');
+  indEl.textContent = `1 / ${pdf.numPages}`;
   const canvases = [];
   for (let i=1;i<=pdf.numPages;i++){
     const holder = document.createElement('div');
@@ -767,11 +770,12 @@ async function openReader(name, bytes){
     canvases.push(holder);
   }
   const renderPage = async (n) => {
-    if (reader.rendering) return;
+    if (reader.rendering || !alive()) return;
     reader.rendering = true;
     try {
-      const holder = canvases[n-1]; if (!holder || holder.dataset.done) return;
+      const holder = canvases[n-1]; if (!holder || holder.dataset.done || !alive()) return;
       const page = await pdf.getPage(n);
+      if (!alive()) return;
       const vw = Math.min(pagesEl.clientWidth - 36, 820);
       const base = page.getViewport({ scale: 1 });
       const scale = vw / base.width;
@@ -780,13 +784,15 @@ async function openReader(name, bytes){
       canvas.width = viewport.width; canvas.height = viewport.height;
       canvas.style.width = (vw) + 'px';
       await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      if (!alive()) return;
       holder.innerHTML = ''; holder.appendChild(canvas); holder.dataset.done = '1';
-      $('#rd-ind').textContent = `${n} / ${pdf.numPages}`;
+      indEl.textContent = `${n} / ${pdf.numPages}`;
     } finally { reader.rendering = false; }
   };
   await renderPage(1);
+  if (!alive()) { destroyReader(); return; }
   reader.observer = new IntersectionObserver(entries => {
-    for (const en of entries){ if (en.isIntersecting){ const n = parseInt(en.target.dataset.page,10); renderPage(n); reader.page = n; $('#rd-ind').textContent = `${n} / ${pdf.numPages}`; } }
+    for (const en of entries){ if (en.isIntersecting && alive()){ const n = parseInt(en.target.dataset.page,10); renderPage(n); reader.page = n; indEl.textContent = `${n} / ${pdf.numPages}`; } }
   }, { root: pagesEl, rootMargin: '400px' });
   canvases.forEach(h => reader.observer.observe(h));
   $('#rd-prev').onclick = () => scrollToPage(Math.max(1, reader.page - 1));
