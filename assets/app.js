@@ -16,7 +16,7 @@ function modal(html){ $('#modal-body').innerHTML = html; $('#modal').classList.r
 function closeModal(){ $('#modal').classList.add('hidden'); $('#modal-body').innerHTML=''; }
 function confirmBox(title, text, onOk, okLabel='确定', danger=true){
   modal(`<h3 style="font-size:17px;margin-bottom:8px">${esc(title)}</h3>
-    <p style="color:var(--sub);font-size:14px;margin-bottom:18px">${esc(text)}</p>
+    <p style="color:var(--text-sub);font-size:14px;margin-bottom:18px">${esc(text)}</p>
     <div style="display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-ghost btn-sm" id="cf-no">取消</button>
       <button class="btn ${danger?'btn-danger':'btn-primary'} btn-sm" id="cf-ok">${esc(okLabel)}</button>
@@ -223,8 +223,8 @@ async function exportSyncCode(){
   enc.u = S.user.name; enc.k = 'rr-code-v1';
   const code = btoa(unescape(encodeURIComponent(JSON.stringify(enc))));
   modal(`<h3 style="font-size:17px;margin-bottom:8px">导出同步码</h3>
-    <p style="color:var(--sub);font-size:13px;margin-bottom:12px">把这段代码复制到另一台设备，在登录同一账号后于「设置 → 导入同步码」粘贴导入。代码含账号加密数据，请勿泄露。</p>
-    <textarea id="code-ta" style="width:100%;height:130px;font-size:12px;font-family:Menlo,monospace;border:1.5px solid var(--line);border-radius:10px;padding:10px">${esc(code)}</textarea>
+    <p style="color:var(--text-sub);font-size:13px;margin-bottom:12px">把这段代码复制到另一台设备，在登录同一账号后于「设置 → 导入同步码」粘贴导入。代码含账号加密数据，请勿泄露。</p>
+    <textarea id="code-ta" style="width:100%;height:130px;font-size:12px;font-family:Menlo,monospace;border:1.5px solid var(--color-shadow-grey);border-radius:10px;padding:10px">${esc(code)}</textarea>
     <div style="display:flex;gap:10px;margin-top:12px;justify-content:flex-end">
       <button class="btn btn-ghost btn-sm" onclick="closeModal()">关闭</button>
       <button class="btn btn-primary btn-sm" id="code-copy">复制</button></div>`);
@@ -232,8 +232,8 @@ async function exportSyncCode(){
 }
 async function importSyncCode(){
   modal(`<h3 style="font-size:17px;margin-bottom:8px">导入同步码</h3>
-    <p style="color:var(--sub);font-size:13px;margin-bottom:12px">粘贴从另一台设备导出的同步码：</p>
-    <textarea id="code-in" style="width:100%;height:130px;font-size:12px;font-family:Menlo,monospace;border:1.5px solid var(--line);border-radius:10px;padding:10px" placeholder="粘贴同步码"></textarea>
+    <p style="color:var(--text-sub);font-size:13px;margin-bottom:12px">粘贴从另一台设备导出的同步码：</p>
+    <textarea id="code-in" style="width:100%;height:130px;font-size:12px;font-family:Menlo,monospace;border:1.5px solid var(--color-shadow-grey);border-radius:10px;padding:10px" placeholder="粘贴同步码"></textarea>
     <div style="display:flex;gap:10px;margin-top:12px;justify-content:flex-end">
       <button class="btn btn-ghost btn-sm" onclick="closeModal()">取消</button>
       <button class="btn btn-primary btn-sm" id="code-imp">导入</button></div>`);
@@ -256,11 +256,15 @@ function chipCh(q){ return `<span class="chip ch${q.ch}">${S.bundle.meta.chapter
 function stemHTML(q, {masked=false, quiz=false} = {}){
   let h = '';
   if (q.type === 'blank'){
-    h = '<span class="stem">' + q.parts.map(p => {
-      if (typeof p === 'string') return esc(p);
-      if (quiz) return `<input class="blank-in" data-bi="${p.a}" size="${Math.max(6, p.a.length+4)}" autocomplete="off">`;
-      return masked ? `<span class="blank-cover">＿＿＿</span>` : `<span class="blank-fill">${esc(p.a)}</span>`;
-    }).join('') + '</span>';
+    if (quiz){
+      h = '<span class="stem">' + q.parts.map(p => {
+        if (typeof p === 'string') return esc(p);
+        return `<input class="blank-in" data-bi="${p.a}" size="${Math.max(6, p.a.length+4)}" autocomplete="off">`;
+      }).join('') + '</span>';
+    } else {
+      // 答案不嵌入题干：一律显示下划线占位
+      h = '<span class="stem">' + q.parts.map(p => typeof p === 'string' ? esc(p) : `<span class="blank-cover">＿＿＿</span>`).join('') + '</span>';
+    }
   } else {
     h = `<div class="stem">${esc(q.stem)}</div>`;
     if (q.code) h += `<div class="codeblock">${esc(q.code)}</div>`;
@@ -274,7 +278,6 @@ function optionsHTML(q, {quiz=false, revealed=false, picked=null} = {}){
   for (const [k, t] of q.options){
     let cls = 'opt';
     if (quiz) { if (picked === k) cls += ' sel'; }
-    else if (revealed) { if (k === q.ans) cls += ' ok'; if (picked === k && picked !== q.ans) cls += ' bad'; if (picked === k) cls += ' sel'; }
     if (revealed || !quiz) cls += ' locked';
     h += `<button class="${cls}" data-k="${k}"><span class="k">${k}</span><span>${esc(t)}</span></button>`;
   }
@@ -286,7 +289,6 @@ function judgeHTML(q, {quiz=false, revealed=false, picked=null} = {}){
   for (const k of ['对','错']){
     let cls = 'judge-btn';
     if (quiz) { if (picked === k) cls += ' sel'; }
-    else if (revealed) { if (k === q.ans) cls += ' ok'; if (picked === k && picked !== q.ans) cls += ' bad'; if (picked === k) cls += ' sel'; }
     if (revealed || !quiz) cls += ' locked';
     h += `<button class="${cls}" data-k="${k}">${k}</button>`;
   }
@@ -302,15 +304,28 @@ function answerText(q){
 }
 function answerBlockHTML(q, {masked=false, revealed=false, showNote=true} = {}){
   if (q.type === 'blank'){
-    const pills = blankAnswers(q).map(a=>`<span class="ans-pill">${esc(a)}</span>`).join('');
-    return `<div class="lbl">答案（按原卷下划线挖空）</div><div class="ans-blank-list ans-mask-target">${pills}</div>`;
+    const pills = blankAnswers(q).map((a,i)=>`<span class="ans-pill"><span class="n">${i+1}</span>${esc(a)}</span>`).join('');
+    return `<div class="ans-blank-list ans-mask-target">${pills}</div>`;
   }
-  if (q.type === 'single' || q.type === 'judge'){
-    return `<div class="lbl">正确答案</div><div class="ans-text ans-mask-target"><b style="color:var(--accent-deep)">${esc(answerText(q))}</b></div>`;
+  if (q.type === 'single'){
+    const optText = (q.options.find(o=>o[0]===q.ans)||['',''])[1];
+    return `<div class="ans-text ans-mask-target"><b>${esc(q.ans)}</b>${optText?`　${esc(optText)}`:''}</div>`;
   }
-  let h = `<div class="lbl">参考答案</div><div class="ans-text ans-mask-target">${esc(q.ref)}</div>`;
+  if (q.type === 'judge'){
+    return `<div class="ans-text ans-mask-target"><b>${esc(q.ans)}</b></div>`;
+  }
+  let h = `<div class="ans-text ans-mask-target">${esc(q.ref)}</div>`;
   if (showNote && q.refNote) h += `<div class="q-note">${esc(q.refNote)}</div>`;
   return h;
+}
+/* 独立答案栏（答案不再嵌入题目） */
+function answerSectionHTML(q, {masked=false} = {}){
+  const typeLabel = S.bundle.meta.typeNames[q.type];
+  return `<div class="answer-section ${masked?'masked':''}">
+    <div class="as-label">答案 · ${esc(typeLabel)}</div>
+    ${answerBlockHTML(q, {showNote:true})}
+    ${masked ? `<div class="ans-cover"><button data-peek="${q.id}">点击查看答案</button></div>` : ''}
+  </div>`;
 }
 function starBtnHTML(q, cls='btn btn-star btn-sm'){
   const inWrong = S.store && S.store.wrong.some(w => w.qid === q.id);
@@ -335,6 +350,7 @@ function bindStarEvents(root){
 function reciteFiltered(){
   const f = reciteFilter;
   return S.bundle.questions.filter(q => {
+    if (f.group !== 'all' && (q.group || 'base') !== f.group) return false;
     if (f.type !== 'all' && q.type !== f.type) return false;
     if (f.ch !== 'all' && String(q.ch) !== f.ch) return false;
     if (f.onlyWrong && !S.store.wrong.some(w=>w.qid===q.id)) return false;
@@ -345,25 +361,27 @@ function reciteFiltered(){
     return true;
   });
 }
-const reciteFilter = { type:'all', ch:'all', kw:'', onlyWrong:false };
+const reciteFilter = { type:'all', ch:'all', kw:'', onlyWrong:false, group:'all' };
 function renderRecite(root){
   if (S.reciteMasked === null) S.reciteMasked = !!S.store.settings.maskDefault;
   const list = reciteFiltered();
   root.innerHTML = `
     <div class="page-title">背题模式</div>
-    <div class="page-sub">答案直接显示，配合「遮挡答案」自测记忆；点击每题的遮挡层可单独查看。</div>
+    <div class="page-sub">答案统一显示在每题下方「答案」栏；开启遮挡后可逐题点开自测。</div>
     <div class="filterbar">
+      <select id="rf-group"><option value="all">全部题库</option><option value="base">复习思考题</option><option value="ext">扩展题库</option></select>
       <select id="rf-type"><option value="all">全部题型</option>${S.bundle.meta.typeOrder.map(t=>`<option value="${t}">${S.bundle.meta.typeNames[t]}</option>`).join('')}</select>
-      <select id="rf-ch"><option value="all">全部章节</option><option value="2">第2章</option><option value="7">第7章</option></select>
-      <input type="text" id="rf-kw" placeholder="搜索关键词" style="width:150px">
+      <select id="rf-ch"><option value="all">全部章节</option>${Object.entries(S.bundle.meta.chapters).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
+      <input type="text" id="rf-kw" placeholder="搜索关键词" style="width:140px">
       <button class="btn btn-ghost btn-sm" id="rf-ow">只看错题</button>
       <span class="spacer"></span>
       <span class="seg" id="rf-mask"><button id="rf-mask-off" class="${!S.reciteMasked?'on':''}">显示答案</button><button id="rf-mask-on" class="${S.reciteMasked?'on':''}">遮挡答案</button></span>
-      <span style="font-size:13px;color:var(--sub)">共 ${list.length} 题</span>
+      <span class="filter-count">共 ${list.length} 题</span>
     </div>
     <div id="recite-list"></div>`;
-  $('#rf-type').value = reciteFilter.type; $('#rf-ch').value = reciteFilter.ch; $('#rf-kw').value = reciteFilter.kw;
+  $('#rf-group').value = reciteFilter.group; $('#rf-type').value = reciteFilter.type; $('#rf-ch').value = reciteFilter.ch; $('#rf-kw').value = reciteFilter.kw;
   $('#rf-ow').classList.toggle('on', reciteFilter.onlyWrong);
+  $('#rf-group').onchange = e => { reciteFilter.group = e.target.value; renderRoute(); };
   $('#rf-type').onchange = e => { reciteFilter.type = e.target.value; renderRoute(); };
   $('#rf-ch').onchange = e => { reciteFilter.ch = e.target.value; renderRoute(); };
   $('#rf-kw').oninput = e => { reciteFilter.kw = e.target.value.trim(); renderRoute(); };
@@ -377,16 +395,11 @@ function renderRecite(root){
 }
 function reciteCardHTML(q){
   const masked = S.reciteMasked && !S.reciteRevealed.has(q.id);
-  const body = (q.type === 'blank')
-    ? stemHTML(q, {masked})
-    : stemHTML(q) + optionsHTML(q, {revealed:!masked, picked:null}) + judgeHTML(q, {revealed:!masked, picked:null});
+  const body = stemHTML(q, {}) + optionsHTML(q, {}) + judgeHTML(q, {});
   return `<div class="card card-q" data-q="${q.id}">
-    <div class="q-head">${chipType(q)}${chipCh(q)}<span class="chip no-chip">${q.type==='blank'?`第 ${q.no} 题`:`第 ${q.no} 题`}</span><span class="src-tag">${esc(q.src||'')}</span></div>
+    <div class="q-head">${chipType(q)}${chipCh(q)}<span class="chip no-chip">第 ${q.no} 题</span><span class="src-tag">${esc(q.src||'')}</span></div>
     ${body}
-    <div class="answer-box ${masked?'masked':''}" style="position:relative">
-      ${answerBlockHTML(q, {showNote:true})}
-      ${masked ? `<div class="ans-cover"><button data-peek="${q.id}">点击查看答案</button></div>` : ''}
-    </div>
+    ${answerSectionHTML(q, {masked})}
     ${q.note ? `<div class="q-note">${esc(q.note)}</div>` : ''}
     <div class="q-actions">${starBtnHTML(q)}</div>
   </div>`;
@@ -401,33 +414,35 @@ function renderQuiz(root){
   if (!S.quiz){ renderQuizSetup(root); return; }
   renderQuizRun(root);
 }
-let quizFilter = { type:'all', ch:'all', scope:'all', count:'all', shuffle:true };
+let quizFilter = { type:'all', ch:'all', scope:'all', count:'all', shuffle:true, group:'all' };
 function renderQuizSetup(root){
   const total = S.bundle.questions.length;
   root.innerHTML = `
     <div class="page-title">做题模式</div>
-    <div class="page-sub">正式答题后，点击「下一题」才会显示正确答案；答错的题可一键加入错题本。</div>
+    <div class="page-sub">正式答题后，点击「下一题」才会显示判定与答案；答错的题可一键加入错题本。</div>
     <div class="card">
-      <div class="filterbar" style="margin-bottom:12px">
+      <div class="filterbar" style="margin-bottom:16px">
+        <select id="qf-group"><option value="all">全部题库</option><option value="base">复习思考题</option><option value="ext">扩展题库</option></select>
         <select id="qf-type"><option value="all">全部题型</option>${S.bundle.meta.typeOrder.map(t=>`<option value="${t}">${S.bundle.meta.typeNames[t]}</option>`).join('')}</select>
-        <select id="qf-ch"><option value="all">全部章节</option><option value="2">第2章</option><option value="7">第7章</option></select>
+        <select id="qf-ch"><option value="all">全部章节</option>${Object.entries(S.bundle.meta.chapters).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
         <select id="qf-scope"><option value="all">全部题目</option><option value="undo">只做未做过</option><option value="wrong">错题重练</option></select>
         <select id="qf-count"><option value="all">不限题数</option><option value="5">5 题</option><option value="10">10 题</option><option value="20">20 题</option></select>
       </div>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--sub)">
-        <input type="checkbox" id="qf-shuffle" checked style="width:16px;height:16px;accent-color:var(--accent)"> 打乱顺序
+      <label style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text-sub)">
+        <input type="checkbox" id="qf-shuffle" checked style="width:16px;height:16px;accent-color:var(--color-blurple)"> 打乱顺序
       </label>
-      <button class="btn btn-primary" id="qf-start" style="margin-top:14px">开始练习</button>
+      <button class="btn btn-primary" id="qf-start" style="margin-top:20px">开始练习</button>
     </div>
-    <div class="card"><b>题型分布</b><div class="type-dist" style="margin-top:10px">${S.bundle.meta.typeOrder.map(t=>{
+    <div class="card"><b style="font-size:16px">题型分布</b><div class="type-dist" style="margin-top:16px">${S.bundle.meta.typeOrder.map(t=>{
       const c = S.bundle.questions.filter(q=>q.type===t).length;
       return `<div class="dist-row"><span class="nm">${S.bundle.meta.typeNames[t]}</span><span class="bar"><i style="width:${(c/total*100).toFixed(1)}%"></i></span><span class="ct">${c}</span></div>`;
     }).join('')}</div></div>`;
-  $('#qf-type').value = quizFilter.type; $('#qf-ch').value = quizFilter.ch; $('#qf-scope').value = quizFilter.scope; $('#qf-count').value = quizFilter.count;
+  $('#qf-group').value = quizFilter.group; $('#qf-type').value = quizFilter.type; $('#qf-ch').value = quizFilter.ch; $('#qf-scope').value = quizFilter.scope; $('#qf-count').value = quizFilter.count;
   $('#qf-shuffle').checked = quizFilter.shuffle;
   $('#qf-start').onclick = () => {
-    quizFilter = { type:$('#qf-type').value, ch:$('#qf-ch').value, scope:$('#qf-scope').value, count:$('#qf-count').value, shuffle:$('#qf-shuffle').checked };
+    quizFilter = { group:$('#qf-group').value, type:$('#qf-type').value, ch:$('#qf-ch').value, scope:$('#qf-scope').value, count:$('#qf-count').value, shuffle:$('#qf-shuffle').checked };
     let pool = S.bundle.questions.filter(q => {
+      if (quizFilter.group !== 'all' && (q.group || 'base') !== quizFilter.group) return false;
       if (quizFilter.type !== 'all' && q.type !== quizFilter.type) return false;
       if (quizFilter.ch !== 'all' && String(q.ch) !== quizFilter.ch) return false;
       if (quizFilter.scope === 'undo' && S.store.progress[q.id]) return false;
@@ -449,18 +464,18 @@ function renderQuizRun(root){
   let inputHTML = '';
   if (q.type === 'single') inputHTML = optionsHTML(q, {quiz:!done, revealed:done, picked:z.picked});
   else if (q.type === 'judge') inputHTML = judgeHTML(q, {quiz:!done, revealed:done, picked:z.picked});
-  else if (q.type === 'short' || q.type === 'analysis') inputHTML = `<textarea class="answer-area" id="qa-area" placeholder="写下你的答案（可留空直接对照参考答案）">${esc(z.inputs[q.id]||'')}</textarea>`;
+  else if (q.type === 'short' || q.type === 'analysis' || q.type === 'calc') inputHTML = `<textarea class="answer-area" id="qa-area" placeholder="写下你的答案（可留空直接对照参考答案）">${esc(z.inputs[q.id]||'')}</textarea>`;
   let revealHTML = '';
   if (done){
     const r = z.results[z.idx] || {};
-    const good = r.ok === true, subjective = (q.type==='short'||q.type==='analysis');
-    const verdict = subjective ? (r.ok===true ? '回答正确' : (r.ok===false ? '回答有误' : '未判定 · 请自评')) : (good ? '回答正确' : '回答错误');
-    revealHTML = `<div class="reveal ${r.ok===true?'good':(r.ok===false?'badx':'')}">
-      <div class="reveal-head"><span class="verdict ${r.ok===true?'good':(r.ok===false?'badx':'')}">${r.ok===true?'✓':(r.ok===false?'✗':'•')} ${verdict}</span>
+    const subjective = (q.type==='short'||q.type==='analysis'||q.type==='calc');
+    const verdict = subjective ? (r.ok===true ? '回答正确' : (r.ok===false ? '回答有误' : '未判定 · 请自评')) : (r.ok ? '回答正确' : '回答错误');
+    revealHTML = `<div class="reveal">
+      <div class="reveal-head"><span class="verdict ${r.ok===true?'good':(r.ok===false?'badx':'neutral')}">${r.ok===true?'✓':(r.ok===false?'✗':'•')} ${verdict}</span>
         <span style="margin-left:auto">${starBtnHTML(q)}</span></div>
-      ${r.detail ? `<div style="font-size:13px;color:var(--sub);margin-top:6px">${esc(r.detail)}</div>` : ''}
-      <div class="reveal-ans">${answerBlockHTML(q, {})}</div>
-      ${subjective && r.ok == null ? `<div style="display:flex;gap:10px;margin-top:12px">
+      ${r.detail ? `<div class="reveal-detail">${esc(r.detail)}</div>` : ''}
+      ${answerSectionHTML(q, {})}
+      ${subjective && r.ok == null ? `<div class="reveal-self">
         <button class="btn btn-ghost btn-sm" id="self-ok">我答对了</button>
         <button class="btn btn-danger btn-sm" id="self-bad">我答错了</button></div>` : ''}
     </div>`;
@@ -471,7 +486,7 @@ function renderQuizRun(root){
     <div class="card card-q">
       <div class="q-head">${chipType(q)}${chipCh(q)}<span class="chip no-chip">第 ${q.no} 题</span><span class="src-tag">${esc(q.src||'')}</span></div>
       ${stemHTML(q, {quiz: q.type==='blank' && !done})}
-      ${q.type==='blank' && done ? `<div class="reveal-ans" style="margin-top:6px"><div class="lbl">你的填写</div><div class="ans-blank-list">${(z.results[z.idx]?.user||[]).map(u=>`<span class="ans-pill" style="color:${u.ok?'var(--ok)':'var(--bad)'}">${esc(u.v||'（空）')}</span>`).join('')}</div></div>` : ''}
+      ${q.type==='blank' && done ? `<div class="reveal-detail" style="margin-top:14px">你的填写：${(z.results[z.idx]?.user||[]).map(u=>`<span class="ans-pill ${u.ok?'good':'bad'}">${esc(u.v||'（空）')}</span>`).join(' ')}</div>` : ''}
       ${inputHTML}
       ${revealHTML}
       ${q.note ? `<div class="q-note">${esc(q.note)}</div>` : ''}
@@ -551,8 +566,8 @@ function finishQuiz(root){
   root.innerHTML = `
     <div class="page-title">练习完成</div>
     <div class="card" style="text-align:center;padding:30px">
-      <div style="font-family:var(--serif);font-size:46px;font-weight:800;color:${rate>=80?'var(--ok)':rate>=60?'var(--warn)':'var(--bad)'}">${rate}%</div>
-      <div style="color:var(--sub);margin-top:6px">客观题正确 ${right} / ${graded.length}${graded.length<z.ids.length?`（另有 ${z.ids.length-graded.length} 题为自评主观题）`:''}</div>
+      <div style="font-size:var(--text-display);font-weight:600;color:${rate>=80?'var(--color-mint)':rate>=60?'#b8860b':'var(--color-coral)'}">${rate}%</div>
+      <div style="color:var(--text-sub);margin-top:6px">客观题正确 ${right} / ${graded.length}${graded.length<z.ids.length?`（另有 ${z.ids.length-graded.length} 题为自评主观题）`:''}</div>
       <div style="display:flex;gap:10px;justify-content:center;margin-top:20px;flex-wrap:wrap">
         ${wrongOnes.length?`<button class="btn btn-primary" id="redo-wrong">重练本次错题（${wrongOnes.length}）</button>`:''}
         <button class="btn btn-ghost" id="quiz-again">再练一组</button>
@@ -562,8 +577,8 @@ function finishQuiz(root){
     ${wrongOnes.length?`<div class="section-h">本次错题</div>` + wrongOnes.map(({r,id})=>{
       const q = qById[id];
       return `<div class="card card-q"><div class="q-head">${chipType(q)}${chipCh(q)}<span class="src-tag">${esc(q.src||'')}</span></div>
-        ${stemHTML(q)}${optionsHTML(q,{revealed:true,picked:Array.isArray(r.user)?null:(typeof r.detail==='string'&&r.detail.includes('你的选择：')?r.detail.slice(-1):null)})}
-        <div class="answer-box">${answerBlockHTML(q,{})}</div></div>`;
+        ${stemHTML(q)}${optionsHTML(q,{})}${judgeHTML(q,{})}
+        ${answerSectionHTML(q, {})}</div>`;
     }).join(''):''}`;
   $('#quiz-again').onclick = () => { S.quiz = null; renderRoute(); };
   $('#quiz-home').onclick = () => { S.quiz = null; location.hash = '#/home'; };
@@ -582,9 +597,9 @@ function renderWrong(root){
     <div class="page-title">错题本</div>
     <div class="page-sub">从背题/做题模式点「☆ 加入错题本」，在这里集中复习、自由增删。</div>
     <div class="filterbar">
-      <span style="font-size:13.5px;color:var(--sub)">共 <b>${items.length}</b> 题 · 已掌握 <b>${Object.keys(S.store.mastered).length}</b></span>
+      <span style="font-size:13.5px;color:var(--text-sub)">共 <b>${items.length}</b> 题 · 已掌握 <b>${Object.keys(S.store.mastered).length}</b></span>
       <span class="spacer"></span>
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--sub)"><input type="checkbox" id="w-mask" style="width:15px;height:15px;accent-color:var(--accent)" ${S.reciteMasked?'checked':''}> 遮挡答案</label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-sub)"><input type="checkbox" id="w-mask" style="width:15px;height:15px;accent-color:var(--color-blurple)" ${S.reciteMasked?'checked':''}> 遮挡答案</label>
       <button class="btn btn-primary btn-sm" id="w-quiz" ${items.length?'':'disabled'}>重练错题</button>
       <button class="btn btn-danger btn-sm" id="w-clear" ${items.length?'':'disabled'}>清空</button>
     </div>
@@ -602,13 +617,12 @@ function renderWrong(root){
   wrap.innerHTML = items.map(w => {
     const q = qById[w.qid]; if (!q) return '';
     const masked = S.reciteMasked && !S.reciteRevealed.has(q.id);
-    const body = q.type==='blank' ? stemHTML(q,{masked}) : stemHTML(q) + optionsHTML(q,{revealed:!masked,picked:null}) + judgeHTML(q,{revealed:!masked,picked:null});
+    const body = stemHTML(q, {}) + optionsHTML(q, {}) + judgeHTML(q, {});
     return `<div class="card card-q">
-      <div class="q-head">${chipType(q)}${chipCh(q)}<span class="src-tag">${esc(q.src||'')} · ${fmtTime(w.t)} 收录${w.src?`（${esc(w.src)}）`:''}</span></div>
+      <div class="q-head">${chipType(q)}${chipCh(q)}<span class="chip no-chip">第 ${q.no} 题</span><span class="src-tag">${esc(q.src||'')} · ${fmtTime(w.t)} 收录${w.src?`（${esc(w.src)}）`:''}</span></div>
       ${body}
-      <div class="answer-box ${masked?'masked':''}" style="position:relative">${answerBlockHTML(q,{})}
-        ${masked?`<div class="ans-cover"><button data-peek="${q.id}">点击查看答案</button></div>`:''}
-      </div>
+      ${answerSectionHTML(q, {masked})}
+      ${q.note ? `<div class="q-note">${esc(q.note)}</div>` : ''}
       <div class="q-actions">
         <button class="btn btn-ghost btn-sm" data-remove="${q.id}">移出</button>
         <button class="btn btn-ghost btn-sm" data-master="${q.id}">✓ 标记已掌握</button>
@@ -649,11 +663,11 @@ function renderDocs(root){
   const ups = S.store.uploadsMeta.slice().sort((a,b)=>b.addedAt-a.addedAt);
   root.innerHTML = `
     <div class="page-title">文档中心 · 知识库</div>
-    <div class="page-sub">在线阅读或下载课程资料；也可以上传你自己的文档保存在站内（≤150KB 的文档会随账号云同步）。</div>
+    <div class="page-sub">在线阅读将在新标签页中打开；也可下载到本地，或上传你自己的文档保存在站内（≤150KB 的文档会随账号云同步）。</div>
     <div class="section-h">内置资料 <span class="hint">加密存放 · 解锁后可读</span></div>
     <div class="doc-grid">${docs.map((d,i)=>`
       <div class="doc-card">
-        <div class="doc-ico">PDF</div>
+        <div class="doc-ico pdf">PDF</div>
         <div class="doc-name">${esc(d.name)}</div>
         <div class="doc-meta">${fmtSize(d.size)} · 课件资料</div>
         <div class="doc-actions"><button class="btn btn-primary btn-sm" data-read="${i}">在线阅读</button><button class="btn btn-ghost btn-sm" data-dl="${i}">下载</button></div>
@@ -662,16 +676,20 @@ function renderDocs(root){
     <div class="filterbar"><button class="btn btn-primary btn-sm" id="up-btn">＋ 上传文档</button><input type="file" id="up-input" multiple accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.webp" style="display:none"></div>
     <div class="doc-grid">${ups.length?ups.map(u=>`
       <div class="doc-card">
-        <div class="doc-ico ${u.type&&u.type.startsWith('image')?'img':(u.name.endsWith('.pdf')?'':'txt')}">${u.name.endsWith('.pdf')?'PDF':(u.type&&u.type.startsWith('image')?'IMG':'TXT')}</div>
+        <div class="doc-ico ${u.type&&u.type.startsWith('image')?'img':(u.name.toLowerCase().endsWith('.pdf')?'pdf':'txt')}">${u.name.toLowerCase().endsWith('.pdf')?'PDF':(u.type&&u.type.startsWith('image')?'IMG':'TXT')}</div>
         <div class="doc-name">${esc(u.name)}</div>
         <div class="doc-meta">${fmtSize(u.size)} · ${fmtTime(u.addedAt)}上传 · <span class="doc-sync ${u.syncData?'cloud':'local'}">${u.syncData?'已同步':'仅本设备'}</span></div>
         <div class="doc-actions"><button class="btn btn-primary btn-sm" data-uopen="${u.id}">打开</button><button class="btn btn-ghost btn-sm" data-udl="${u.id}">下载</button><button class="btn btn-danger btn-sm" data-udel="${u.id}">删除</button></div>
       </div>`).join(''):`<div class="empty" style="grid-column:1/-1"><div class="big">⬆</div>还没有上传文档</div>`}</div>`;
   $('#up-btn').onclick = () => $('#up-input').click();
   $('#up-input').onchange = async e => { const files = Array.from(e.target.files||[]); for (const f of files) await handleUpload(f); renderRoute(); };
-  $$('[data-read]').forEach(b => b.onclick = () => readBuiltIn(parseInt(b.dataset.read,10)));
+  $$('[data-read]').forEach(b => b.onclick = () => openReaderTab('doc=' + b.dataset.read));
   $$('[data-dl]').forEach(b => b.onclick = () => downloadBuiltIn(parseInt(b.dataset.dl,10)));
-  $$('[data-uopen]').forEach(b => b.onclick = () => openUploaded(b.dataset.uopen));
+  $$('[data-uopen]').forEach(b => b.onclick = async () => {
+    const rec = await idbGet(b.dataset.uopen);
+    if (rec && rec.name && rec.name.toLowerCase().endsWith('.pdf')) openReaderTab('up=' + b.dataset.uopen);
+    else openUploaded(b.dataset.uopen);
+  });
   $$('[data-udl]').forEach(b => b.onclick = () => downloadUploaded(b.dataset.udl));
   $$('[data-udel]').forEach(b => b.onclick = () => {
     const id = b.dataset.udel;
@@ -695,7 +713,7 @@ async function handleUpload(file){
   saveStore();
   toast(`已上传：${file.name}${meta.syncData?'（将云同步）':'（仅本设备）'}`);
 }
-async function getBuiltInBytes(idx){
+async function downloadBuiltInBytes(idx){
   const d = S.bundle.docs[idx];
   const enc = await fetchJSON(d.file);
   const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv:b64d(enc.iv)}, S.contentKey, b64d(enc.data));
@@ -704,7 +722,7 @@ async function getBuiltInBytes(idx){
 async function downloadBuiltIn(idx){
   try {
     toast('解密并准备下载…');
-    const { bytes, name } = await getBuiltInBytes(idx);
+    const { bytes, name } = await downloadBuiltInBytes(idx);
     const url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
     const a = document.createElement('a'); a.href = url; a.download = name; a.click();
     setTimeout(()=>URL.revokeObjectURL(url), 4000);
@@ -732,35 +750,60 @@ async function openUploaded(id){
     <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="closeModal()">关闭</button></div>`);
 }
 
-/* ================= PDF 阅读器 ================= */
+/* ================= PDF 阅读器（独立页面，支持新标签页打开） ================= */
 const reader = { pdf:null, page:1, rendering:false, pending:new Set(), observer:null, token:0 };
-async function readBuiltIn(idx){
-  try {
-    toast('解密文档…');
-    const { bytes, name } = await getBuiltInBytes(idx);
-    openReader(name, bytes);
-  } catch(e){ toast('打开失败：'+e.message, true); }
+function readerURL(params){ return new URL('#/reader?' + params, location.href).href; }
+function openReaderTab(params){ window.open(readerURL(params), '_blank'); }
+async function readBuiltInBytes(idx){
+  const d = S.bundle.docs[idx];
+  const enc = await fetchJSON(d.file);
+  const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv:b64d(enc.iv)}, S.contentKey, b64d(enc.data));
+  return { bytes: new Uint8Array(pt), name: d.name };
 }
-async function openReader(name, bytes){
-  if (!window.pdfjsLib){ toast('PDF 组件尚未加载完成，请稍候重试', true); return; }
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'assets/pdf.worker.min.js';
-  modal(`<div class="reader-toolbar">
-      <span class="doc-title">${esc(name)}</span>
-      <button class="btn btn-ghost btn-sm" id="rd-prev">上一页</button>
-      <span id="rd-ind" style="font-size:13px;color:var(--sub);white-space:nowrap">-/-</span>
-      <button class="btn btn-ghost btn-sm" id="rd-next">下一页</button>
-      <button class="btn btn-ghost btn-sm" id="rd-dl">下载</button>
-      <button class="btn btn-ghost btn-sm" id="rd-close">关闭</button>
-    </div><div class="reader-pages" id="rd-pages"></div>`);
-  $('#rd-close').onclick = () => { destroyReader(); closeModal(); };
+async function renderReaderFull(root, _params){
+  const h = location.hash.replace(/^#\//,'');
+  const qp = new URLSearchParams(h.split('?')[1] || '');
+  root.innerHTML = `<div class="page-title">文档阅读</div><div class="empty"><div class="big">⋯</div>正在解密并打开文档…</div>`;
+  try {
+    if (qp.has('doc')){
+      const idx = parseInt(qp.get('doc'), 10);
+      const d = S.bundle.docs[idx];
+      if (!d) throw new Error('文档不存在');
+      const { bytes, name } = await readBuiltInBytes(idx);
+      mountReader(root, name, bytes);
+    } else if (qp.has('up')){
+      const rec = await idbGet(qp.get('up'));
+      if (!rec) throw new Error('文件不存在（可能来自另一台设备）');
+      const bytes = new Uint8Array(await rec.blob.arrayBuffer());
+      mountReader(root, rec.name, bytes);
+    } else throw new Error('缺少文档参数');
+  } catch(e){
+    root.innerHTML = `<div class="page-title">文档阅读</div><div class="empty"><div class="big">⚠</div>${esc(e.message || '打开失败')}</div>`;
+  }
+}
+async function mountReader(root, name, bytes){
+  if (!window.pdfjsLib){ root.innerHTML = `<div class="page-title">文档阅读</div><div class="empty"><div class="big">⚠</div>PDF 组件尚未加载完成，请稍候重试</div>`; return; }
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'assets/pdf.worker.min.js?v=5';
+  destroyReader();
+  root.innerHTML = `
+    <div class="reader-page">
+      <div class="reader-toolbar">
+        <button class="btn btn-ghost btn-sm" id="rd-back">返回</button>
+        <span class="doc-title">${esc(name)}</span>
+        <button class="btn btn-ghost btn-sm" id="rd-prev">上一页</button>
+        <span id="rd-ind" style="font-size:13px;color:var(--text-sub);white-space:nowrap">-/-</span>
+        <button class="btn btn-ghost btn-sm" id="rd-next">下一页</button>
+        <button class="btn btn-ghost btn-sm" id="rd-dl">下载</button>
+      </div>
+      <div class="reader-pages" id="rd-pages"></div>
+    </div>`;
+  $('#rd-back').onclick = () => { if (history.length > 1) history.back(); else { location.hash = '#/docs'; renderRoute(); } };
   $('#rd-dl').onclick = () => { const url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'})); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),4000); };
   const indEl = $('#rd-ind'), pagesEl = $('#rd-pages');
-  $('#rd-close').onclick = () => { destroyReader(); closeModal(); };
-  $('#rd-dl').onclick = () => { const url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'})); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),4000); };
   const session = ++reader.token;
   const closed = () => reader.token !== session || !indEl.isConnected;
   const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-  if (closed()) return; // 阅读器已被用户关闭，放弃渲染
+  if (closed()) return; // 页面已切换，放弃渲染
   reader.pdf = pdf; reader.page = 1;
   indEl.textContent = `1 / ${pdf.numPages}`;
   const canvases = [];
@@ -778,7 +821,7 @@ async function openReader(name, bytes){
       const holder = canvases[n-1]; if (!holder || holder.dataset.done || closed()) return;
       const page = await pdf.getPage(n);
       if (closed()) return;
-      const vw = Math.min(pagesEl.clientWidth - 36, 820);
+      const vw = Math.min(Math.min(root.clientWidth, window.innerWidth) - 96, 820);
       const base = page.getViewport({ scale: 1 });
       const scale = vw / base.width;
       const viewport = page.getViewport({ scale: scale * Math.min(window.devicePixelRatio||1, 2) });
@@ -795,7 +838,7 @@ async function openReader(name, bytes){
   if (closed()) return;
   reader.observer = new IntersectionObserver(entries => {
     for (const en of entries){ if (en.isIntersecting && !closed()){ const n = parseInt(en.target.dataset.page,10); renderPage(n); reader.page = n; indEl.textContent = `${n} / ${pdf.numPages}`; } }
-  }, { root: pagesEl, rootMargin: '400px' });
+  }, { root: null, rootMargin: '600px' });
   canvases.forEach(h => reader.observer.observe(h));
   $('#rd-prev').onclick = () => scrollToPage(Math.max(1, reader.page - 1));
   $('#rd-next').onclick = () => scrollToPage(Math.min(pdf.numPages, reader.page + 1));
@@ -811,7 +854,7 @@ function renderHome(root){
   const masterN = Object.keys(S.store.mastered).length;
   root.innerHTML = `
     <div class="page-title">你好，${esc(S.user.name)}</div>
-    <div class="page-sub">${esc(S.bundle.meta.title)} · 题库来自「${esc(S.bundle.meta.source)}」</div>
+    <div class="page-sub">${esc(S.bundle.meta.title)}</div>
     <div class="stats-grid">
       <div class="stat-card"><div class="num">${total}</div><div class="lbl">题库总数</div></div>
       <div class="stat-card accent"><div class="num">${doneN}</div><div class="lbl">已练习</div></div>
@@ -819,22 +862,36 @@ function renderHome(root){
       <div class="stat-card good"><div class="num">${masterN}</div><div class="lbl">已掌握</div></div>
     </div>
     <div class="card">
-      <b>快捷入口</b>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px">
+      <div class="as-label">题库模块</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:14px">
+        <div style="box-shadow:var(--sh-recessed-sm);border-radius:var(--radius-inputs);padding:16px 20px">
+          <div style="font-weight:600;font-size:16px">复习思考题</div>
+          <div style="color:var(--text-sub);font-size:12px;margin-top:4px">老师原卷 · ${S.bundle.questions.filter(q=>(q.group||'base')==='base').length} 题</div>
+        </div>
+        <div style="box-shadow:var(--sh-recessed-sm);border-radius:var(--radius-inputs);padding:16px 20px">
+          <div style="font-weight:600;font-size:16px">扩展题库</div>
+          <div style="color:var(--text-sub);font-size:12px;margin-top:4px">期末自测 · ${S.bundle.questions.filter(q=>q.group==='ext').length} 题（含PE计算大题）</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="as-label">快捷入口</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-top:14px">
         <button class="btn btn-primary" data-go="#/recite">开始背题</button>
         <button class="btn btn-ghost" data-go="#/quiz">开始做题</button>
         <button class="btn btn-ghost" data-go="#/wrong">错题本</button>
         <button class="btn btn-ghost" data-go="#/docs">文档中心</button>
       </div>
     </div>
-    <div class="card"><b>题型分布</b><div class="type-dist" style="margin-top:10px">${S.bundle.meta.typeOrder.map(t=>{
+    <div class="card"><b style="font-size:16px">题型分布</b><div class="type-dist" style="margin-top:16px">${S.bundle.meta.typeOrder.map(t=>{
       const c = S.bundle.questions.filter(q=>q.type===t).length;
       return `<div class="dist-row"><span class="nm">${S.bundle.meta.typeNames[t]}</span><span class="bar"><i style="width:${(c/total*100).toFixed(1)}%"></i></span><span class="ct">${c}</span></div>`;
     }).join('')}</div></div>
-    <div class="card" style="font-size:13px;color:var(--sub)">
-      <b style="color:var(--ink)">说明</b><br>
-      · 题目与挖空完全按老师原卷《${esc(S.bundle.meta.source)}》整理，填空题挖空位置与原卷下划线一致。<br>
-      · 简答/分析题为开放题，参考答案部分由 AI 依据课件补充，已标注说明。<br>
+    <div class="card" style="font-size:13px;color:var(--text-sub);line-height:1.8">
+      <b style="color:var(--text-ink)">说明</b><br>
+      · 答案统一显示在每题下方的「答案」栏，背题模式可用「遮挡答案」自测。<br>
+      · 「复习思考题」挖空与老师原卷下划线一致；「扩展题库」整理自《期末复习自测题库》文档，含PE导入导出表计算大题。<br>
+      · 简答/计算题为开放题，参考答案部分由 AI 依据课件补充，已标注说明。<br>
       ${S.user.guest ? '· 当前为游客模式，数据仅保存在本设备，不会云同步。' : '· 登录同一账号即可在手机/电脑间同步错题本与练习记录。'}
     </div>`;
   root.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { location.hash = b.dataset.go; });
@@ -861,7 +918,7 @@ function renderSettings(root){
       <div class="set-row"><div class="info"><div class="t">重置练习进度</div><div class="d">清空做题记录与已掌握标记（不影响错题本）。</div></div>
         <button class="btn btn-danger btn-sm" id="st-reset">重置</button></div>
     </div>
-    <div class="card" style="font-size:12.5px;color:var(--sub)">
+    <div class="card" style="font-size:12.5px;color:var(--text-sub)">
       逆向工程复习站 · 题库：${esc(S.bundle.meta.source)} · 共 ${S.bundle.questions.length} 题<br>
       全站内容（题库与文档）以 AES-256-GCM 加密存放，访问密码不存储于任何服务器。
     </div>`;
@@ -875,8 +932,12 @@ function renderSettings(root){
 }
 
 /* ================= 路由 ================= */
-const routes = { home: renderHome, recite: renderRecite, quiz: renderQuiz, wrong: renderWrong, docs: renderDocs, settings: renderSettings };
-function currentRoute(){ const h = location.hash.replace(/^#\//,''); return routes[h] ? h : 'home'; }
+const routes = { home: renderHome, recite: renderRecite, quiz: renderQuiz, wrong: renderWrong, docs: renderDocs, settings: renderSettings, reader: renderReaderFull };
+function currentRoute(){
+  const h = location.hash.replace(/^#\//,'');
+  const base = h.split('?')[0];
+  return routes[base] ? base : 'home';
+}
 function renderRoute(){
   if (!S.bundle) return;
   const view = currentRoute();

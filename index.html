@@ -6,9 +6,9 @@
 <meta name="theme-color" content="#1c2340">
 <title>逆向工程复习站</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c2340'/%3E%3Cpath d='M32 14a10 10 0 0 0-10 10v6h-2a4 4 0 0 0-4 4v14a4 4 0 0 0 4 4h24a4 4 0 0 0 4-4V34a4 4 0 0 0-4-4h-2v-6a10 10 0 0 0-10-10zm-4 16v-6a4 4 0 1 1 8 0v6h-8z' fill='%23f5c542'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="assets/style.css?v=4">
-<script defer src="assets/pdf.min.js?v=4"></script>
-<script defer src="assets/app.js?v=4"></script>
+<link rel="stylesheet" href="assets/style.css?v=5">
+<script defer src="assets/pdf.min.js?v=5"></script>
+<script defer src="assets/app.js?v=5"></script>
 </head>
 <body>
 
@@ -16,13 +16,13 @@
 <div id="gate" class="overlay">
   <div class="gate-card">
     <div class="gate-lock">
-      <svg viewBox="0 0 64 64" width="44" height="44"><rect width="64" height="64" rx="14" fill="#1c2340"/><path d="M32 14a10 10 0 0 0-10 10v6h-2a4 4 0 0 0-4 4v14a4 4 0 0 0 4 4h24a4 4 0 0 0 4-4V34a4 4 0 0 0-4-4h-2v-6a10 10 0 0 0-10-10zm-4 16v-6a4 4 0 1 1 8 0v6h-8z" fill="#f5c542"/></svg>
+      <svg viewBox="0 0 64 64" width="52" height="52"><rect width="64" height="64" rx="16"/><path d="M32 14a10 10 0 0 0-10 10v6h-2a4 4 0 0 0-4 4v14a4 4 0 0 0 4 4h24a4 4 0 0 0 4-4V34a4 4 0 0 0-4-4h-2v-6a10 10 0 0 0-10-10zm-4 16v-6a4 4 0 1 1 8 0v6h-8z"/></svg>
     </div>
     <h1 class="brand-serif">逆向工程复习站</h1>
     <p class="gate-sub">私有复习资料 · 请输入访问密码解锁</p>
     <form id="gate-form" autocomplete="off">
       <div class="pw-wrap">
-        <input id="gate-pw" type="password" placeholder="访问密码" autocomplete="off" autofocus>
+        <input id="gate-pw" class="recessed" type="password" placeholder="访问密码" autocomplete="off" autofocus>
         <button type="button" class="pw-eye" id="gate-eye" tabindex="-1">显示</button>
       </div>
       <div id="gate-err" class="form-err"></div>
@@ -39,9 +39,9 @@
     <p class="gate-sub">登录你的账号，练习进度与错题本将跨设备同步</p>
     <form id="login-form" autocomplete="off">
       <div class="field"><label for="login-user">账号</label>
-        <input id="login-user" type="text" placeholder="你的账号名" autocomplete="off" maxlength="24"></div>
+        <input id="login-user" class="recessed" type="text" placeholder="你的账号名" autocomplete="off" maxlength="24"></div>
       <div class="field"><label for="login-pw">密码</label>
-        <div class="pw-wrap"><input id="login-pw" type="password" placeholder="账号密码（至少4位）" autocomplete="off">
+        <div class="pw-wrap"><input id="login-pw" class="recessed" type="password" placeholder="账号密码（至少4位）" autocomplete="off">
         <button type="button" class="pw-eye" id="login-eye" tabindex="-1">显示</button></div></div>
       <div id="login-err" class="form-err"></div>
       <button class="btn btn-primary btn-block" id="login-btn" type="submit">登录 / 首次使用自动创建</button>
