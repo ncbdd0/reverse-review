@@ -264,6 +264,17 @@ input,textarea,select{font-family:inherit;font-size:inherit;color:inherit}
 .modal-mask{position:fixed;inset:0;background:rgba(184,188,194,.45);backdrop-filter:blur(3px);z-index:1}
 #modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
 
+/* DOCX 渲染 */
+.docx-view{align-items:stretch;display:block}
+.docx-content{max-width:800px;margin:0 auto;background:var(--color-base);font-size:15px;line-height:1.8;color:var(--text-ink)}
+.docx-content img{max-width:100%;height:auto;border-radius:8px;box-shadow:var(--sh-raised-sm);margin:12px 0}
+.docx-content h1,.docx-content h2,.docx-content h3{font-weight:600;margin:24px 0 12px;line-height:1.3}
+.docx-content h1{font-size:24px}.docx-content h2{font-size:20px}.docx-content h3{font-size:16px}
+.docx-content p{margin:10px 0}
+.docx-content table{border-collapse:collapse;margin:16px 0;width:100%;font-size:13px}
+.docx-content td,.docx-content th{padding:8px 12px;box-shadow:inset 0 0 0 1px rgba(184,188,194,.5)}
+.docx-content ul,.docx-content ol{padding-left:24px;margin:10px 0}
+
 /* toast */
 .toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:var(--color-base);color:var(--text-ink);
   padding:12px 24px;border-radius:var(--radius-pills);font-size:var(--text-body);z-index:200;box-shadow:var(--sh-raised);animation:fadeUp .2s}

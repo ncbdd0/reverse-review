@@ -369,7 +369,7 @@ function renderRecite(root){
     <div class="page-title">背题模式</div>
     <div class="page-sub">答案统一显示在每题下方「答案」栏；开启遮挡后可逐题点开自测。</div>
     <div class="filterbar">
-      <select id="rf-group"><option value="all">全部题库</option><option value="base">复习思考题</option><option value="ext">扩展题库</option></select>
+      <select id="rf-group"><option value="all">全部题库</option>${(S.bundle.meta.groups||[{id:'base',name:'复习思考题'},{id:'ext',name:'扩展题库'}]).map(g=>`<option value="${g.id}">${g.name}</option>`).join('')}</select>
       <select id="rf-type"><option value="all">全部题型</option>${S.bundle.meta.typeOrder.map(t=>`<option value="${t}">${S.bundle.meta.typeNames[t]}</option>`).join('')}</select>
       <select id="rf-ch"><option value="all">全部章节</option>${Object.entries(S.bundle.meta.chapters).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
       <input type="text" id="rf-kw" placeholder="搜索关键词" style="width:140px">
@@ -422,7 +422,7 @@ function renderQuizSetup(root){
     <div class="page-sub">正式答题后，点击「下一题」才会显示判定与答案；答错的题可一键加入错题本。</div>
     <div class="card">
       <div class="filterbar" style="margin-bottom:16px">
-        <select id="qf-group"><option value="all">全部题库</option><option value="base">复习思考题</option><option value="ext">扩展题库</option></select>
+        <select id="qf-group"><option value="all">全部题库</option>${(S.bundle.meta.groups||[{id:'base',name:'复习思考题'},{id:'ext',name:'扩展题库'}]).map(g=>`<option value="${g.id}">${g.name}</option>`).join('')}</select>
         <select id="qf-type"><option value="all">全部题型</option>${S.bundle.meta.typeOrder.map(t=>`<option value="${t}">${S.bundle.meta.typeNames[t]}</option>`).join('')}</select>
         <select id="qf-ch"><option value="all">全部章节</option>${Object.entries(S.bundle.meta.chapters).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
         <select id="qf-scope"><option value="all">全部题目</option><option value="undo">只做未做过</option><option value="wrong">错题重练</option></select>
@@ -664,16 +664,18 @@ function renderDocs(root){
   root.innerHTML = `
     <div class="page-title">文档中心 · 知识库</div>
     <div class="page-sub">在线阅读将在新标签页中打开；也可下载到本地，或上传你自己的文档保存在站内（≤150KB 的文档会随账号云同步）。</div>
-    <div class="section-h">内置资料 <span class="hint">加密存放 · 解锁后可读</span></div>
-    <div class="doc-grid">${docs.map((d,i)=>`
+    <div class="section-h">内置资料 <span class="hint">加密存放 · 解锁后可读 · 点击在线阅读将打开新标签页</span></div>
+    <div class="doc-grid">${docs.map((d,i)=>{
+      const isDocx = d.name.toLowerCase().endsWith('.docx');
+      return `
       <div class="doc-card">
-        <div class="doc-ico pdf">PDF</div>
+        <div class="doc-ico ${isDocx?'txt':'pdf'}">${isDocx?'DOCX':'PDF'}</div>
         <div class="doc-name">${esc(d.name)}</div>
-        <div class="doc-meta">${fmtSize(d.size)} · 课件资料</div>
+        <div class="doc-meta">${fmtSize(d.size)} · ${isDocx?'知识点文档':'课件资料'}</div>
         <div class="doc-actions"><button class="btn btn-primary btn-sm" data-read="${i}">在线阅读</button><button class="btn btn-ghost btn-sm" data-dl="${i}">下载</button></div>
-      </div>`).join('')}</div>
+      </div>`;}).join('')}</div>
     <div class="section-h">我的上传 <span class="hint">保存在本设备；小文件自动云同步</span></div>
-    <div class="filterbar"><button class="btn btn-primary btn-sm" id="up-btn">＋ 上传文档</button><input type="file" id="up-input" multiple accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.webp" style="display:none"></div>
+    <div class="filterbar"><button class="btn btn-primary btn-sm" id="up-btn">＋ 上传文档</button><input type="file" id="up-input" multiple accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg,.webp" style="display:none"></div>
     <div class="doc-grid">${ups.length?ups.map(u=>`
       <div class="doc-card">
         <div class="doc-ico ${u.type&&u.type.startsWith('image')?'img':(u.name.toLowerCase().endsWith('.pdf')?'pdf':'txt')}">${u.name.toLowerCase().endsWith('.pdf')?'PDF':(u.type&&u.type.startsWith('image')?'IMG':'TXT')}</div>
@@ -687,7 +689,8 @@ function renderDocs(root){
   $$('[data-dl]').forEach(b => b.onclick = () => downloadBuiltIn(parseInt(b.dataset.dl,10)));
   $$('[data-uopen]').forEach(b => b.onclick = async () => {
     const rec = await idbGet(b.dataset.uopen);
-    if (rec && rec.name && rec.name.toLowerCase().endsWith('.pdf')) openReaderTab('up=' + b.dataset.uopen);
+    const nm = (rec?.name || '').toLowerCase();
+    if (nm.endsWith('.pdf') || nm.endsWith('.docx')) openReaderTab('up=' + b.dataset.uopen);
     else openUploaded(b.dataset.uopen);
   });
   $$('[data-udl]').forEach(b => b.onclick = () => downloadUploaded(b.dataset.udl));
@@ -770,15 +773,44 @@ async function renderReaderFull(root, _params){
       const d = S.bundle.docs[idx];
       if (!d) throw new Error('文档不存在');
       const { bytes, name } = await readBuiltInBytes(idx);
-      mountReader(root, name, bytes);
+      openInReader(root, name, bytes);
     } else if (qp.has('up')){
       const rec = await idbGet(qp.get('up'));
       if (!rec) throw new Error('文件不存在（可能来自另一台设备）');
       const bytes = new Uint8Array(await rec.blob.arrayBuffer());
-      mountReader(root, rec.name, bytes);
+      openInReader(root, rec.name, bytes);
     } else throw new Error('缺少文档参数');
   } catch(e){
     root.innerHTML = `<div class="page-title">文档阅读</div><div class="empty"><div class="big">⚠</div>${esc(e.message || '打开失败')}</div>`;
+  }
+}
+async function openInReader(root, name, bytes){
+  if (name.toLowerCase().endsWith('.docx')) return mountDocxReader(root, name, bytes);
+  return mountReader(root, name, bytes);
+}
+async function mountDocxReader(root, name, bytes){
+  if (!window.mammoth){ root.innerHTML = `<div class="page-title">文档阅读</div><div class="empty"><div class="big">⚠</div>DOCX 组件尚未加载完成，请稍候重试</div>`; return; }
+  destroyReader();
+  root.innerHTML = `
+    <div class="reader-page">
+      <div class="reader-toolbar">
+        <button class="btn btn-ghost btn-sm" id="rd-back">返回</button>
+        <span class="doc-title">${esc(name)}</span>
+        <button class="btn btn-ghost btn-sm" id="rd-dl">下载</button>
+      </div>
+      <div class="reader-pages docx-view" id="rd-docx"><div class="empty" style="box-shadow:none"><div class="big">⋯</div>正在转换文档…</div></div>
+    </div>`;
+  $('#rd-back').onclick = () => { if (history.length > 1) history.back(); else { location.hash = '#/docs'; renderRoute(); } };
+  $('#rd-dl').onclick = () => { const url = URL.createObjectURL(new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),4000); };
+  const session = ++reader.token;
+  const closed = () => reader.token !== session || !document.body.contains($('#rd-docx'));
+  try {
+    const result = await mammoth.convertToHtml({ arrayBuffer: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) }, { convertImage: mammoth.images.imgElement(img => img.read("base64").then(b64 => ({src: "data:" + img.contentType + ";base64," + b64}))) });
+    if (closed()) return;
+    const el = $('#rd-docx');
+    el.innerHTML = `<div class="docx-content">${result.value}</div>`;
+  } catch(e){
+    if (!closed()) $('#rd-docx').innerHTML = `<div class="empty" style="box-shadow:none"><div class="big">⚠</div>转换失败：${esc(e.message)}</div>`;
   }
 }
 async function mountReader(root, name, bytes){
@@ -863,7 +895,7 @@ function renderHome(root){
     </div>
     <div class="card">
       <div class="as-label">题库模块</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:14px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:14px">
         <div style="box-shadow:var(--sh-recessed-sm);border-radius:var(--radius-inputs);padding:16px 20px">
           <div style="font-weight:600;font-size:16px">复习思考题</div>
           <div style="color:var(--text-sub);font-size:12px;margin-top:4px">老师原卷 · ${S.bundle.questions.filter(q=>(q.group||'base')==='base').length} 题</div>
@@ -871,6 +903,10 @@ function renderHome(root){
         <div style="box-shadow:var(--sh-recessed-sm);border-radius:var(--radius-inputs);padding:16px 20px">
           <div style="font-weight:600;font-size:16px">扩展题库</div>
           <div style="color:var(--text-sub);font-size:12px;margin-top:4px">期末自测 · ${S.bundle.questions.filter(q=>q.group==='ext').length} 题（含PE计算大题）</div>
+        </div>
+        <div style="box-shadow:var(--sh-recessed-sm);border-radius:var(--radius-inputs);padding:16px 20px">
+          <div style="font-weight:600;font-size:16px">模拟试卷</div>
+          <div style="color:var(--text-sub);font-size:12px;margin-top:4px">限时自测 · ${S.bundle.questions.filter(q=>q.group==='mock').length} 题（第四五章）</div>
         </div>
       </div>
     </div>
