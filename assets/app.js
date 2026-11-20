@@ -69,7 +69,7 @@ const S = {
   sync: { timer:null, busy:false, lastOk: Number(localStorage.getItem('rr_lastSync')||0), err:'' },
   quiz: null,         // 做题会话
   reciteMasked: null, // null=尚未初始化（首次进入读设置）
-  reciteRevealed: new Set(),
+  cardMask: {},       // {qid: true=遮挡 / false=显示} 每题独立遮挡状态
 };
 const qById = {}; // id -> question
 function blankAnswers(q){ return q.parts.filter(p => typeof p === 'object').map(p => p.a); }
@@ -318,14 +318,21 @@ function answerBlockHTML(q, {masked=false, revealed=false, showNote=true} = {}){
   if (showNote && q.refNote) h += `<div class="q-note">${esc(q.refNote)}</div>`;
   return h;
 }
+/* 每题独立遮挡状态：S.cardMask 有记录则用它，否则用全局默认 */
+function cardMasked(qid, fallback){ return cardMaskedKey(qid, fallback); }
+function cardMaskedKey(key, fallback){ return (key in S.cardMask) ? S.cardMask[key] : !!fallback; }
 /* 独立答案栏（答案不再嵌入题目） */
-function answerSectionHTML(q, {masked=false} = {}){
+function answerSectionHTML(q, {masked=false, showCover=true} = {}){
   const typeLabel = S.bundle.meta.typeNames[q.type];
   return `<div class="answer-section ${masked?'masked':''}">
     <div class="as-label">答案 · ${esc(typeLabel)}</div>
     ${answerBlockHTML(q, {showNote:true})}
-    ${masked ? `<div class="ans-cover"><button data-peek="${q.id}">点击查看答案</button></div>` : ''}
+    ${(masked && showCover) ? `<div class="ans-cover"><button data-peek="${q.id}">点击查看答案</button></div>` : ''}
   </div>`;
+}
+/* 每题遮挡/显示切换按钮 */
+function maskToggleHTML(q, masked, key){
+  return `<button class="btn btn-ghost btn-sm" data-cmask="${key||q.id}">${masked?'显示答案':'遮挡答案'}</button>`;
 }
 function starBtnHTML(q, cls='btn btn-star btn-sm'){
   const inWrong = S.store && S.store.wrong.some(w => w.qid === q.id);
@@ -386,27 +393,36 @@ function renderRecite(root){
   $('#rf-ch').onchange = e => { reciteFilter.ch = e.target.value; renderRoute(); };
   $('#rf-kw').oninput = e => { reciteFilter.kw = e.target.value.trim(); renderRoute(); };
   $('#rf-ow').onclick = () => { reciteFilter.onlyWrong = !reciteFilter.onlyWrong; renderRoute(); };
-  $('#rf-mask-on').onclick = () => { S.reciteMasked = true; renderRoute(); };
-  $('#rf-mask-off').onclick = () => { S.reciteMasked = false; renderRoute(); };
+  $('#rf-mask-on').onclick = () => { S.reciteMasked = true; S.cardMask = {}; renderRoute(); };
+  $('#rf-mask-off').onclick = () => { S.reciteMasked = false; S.cardMask = {}; renderRoute(); };
   const wrap = $('#recite-list');
   if (!list.length){ wrap.innerHTML = `<div class="empty"><div class="big">✦</div>没有符合条件的题目</div>`; return; }
   wrap.innerHTML = list.map(q => reciteCardHTML(q)).join('');
   bindCardEvents(wrap);
 }
 function reciteCardHTML(q){
-  const masked = S.reciteMasked && !S.reciteRevealed.has(q.id);
+  const masked = cardMasked(q.id, S.reciteMasked);
   const body = stemHTML(q, {}) + optionsHTML(q, {}) + judgeHTML(q, {});
   return `<div class="card card-q" data-q="${q.id}">
     <div class="q-head">${chipType(q)}${chipCh(q)}<span class="chip no-chip">第 ${q.no} 题</span><span class="src-tag">${esc(q.src||'')}</span></div>
     ${body}
     ${answerSectionHTML(q, {masked})}
     ${q.note ? `<div class="q-note">${esc(q.note)}</div>` : ''}
-    <div class="q-actions">${starBtnHTML(q)}</div>
+    <div class="q-actions">${maskToggleHTML(q, masked)}${starBtnHTML(q)}</div>
   </div>`;
 }
 function bindCardEvents(root){
-  root.querySelectorAll('[data-peek]').forEach(b => b.onclick = () => { S.reciteRevealed.add(b.dataset.peek); renderRoute(); });
+  root.querySelectorAll('[data-peek]').forEach(b => b.onclick = () => { S.cardMask[b.dataset.peek] = false; renderRoute(); });
+  bindMaskToggleEvents(root);
   bindStarEvents(root);
+}
+function bindMaskToggleEvents(root){
+  root.querySelectorAll('[data-cmask]').forEach(b => b.onclick = () => {
+    const key = b.dataset.cmask;
+    const cur = cardMaskedKey(key, key.startsWith('q:') ? false : S.reciteMasked);
+    S.cardMask[key] = !cur;
+    renderRoute();
+  });
 }
 
 /* ================= 做题模式 ================= */
@@ -470,11 +486,12 @@ function renderQuizRun(root){
     const r = z.results[z.idx] || {};
     const subjective = (q.type==='short'||q.type==='analysis'||q.type==='calc');
     const verdict = subjective ? (r.ok===true ? '回答正确' : (r.ok===false ? '回答有误' : '未判定 · 请自评')) : (r.ok ? '回答正确' : '回答错误');
+    const qMasked = cardMaskedKey('q:'+q.id, false);
     revealHTML = `<div class="reveal">
       <div class="reveal-head"><span class="verdict ${r.ok===true?'good':(r.ok===false?'badx':'neutral')}">${r.ok===true?'✓':(r.ok===false?'✗':'•')} ${verdict}</span>
-        <span style="margin-left:auto">${starBtnHTML(q)}</span></div>
+        <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">${maskToggleHTML(q, qMasked, 'q:'+q.id)}${starBtnHTML(q)}</span></div>
       ${r.detail ? `<div class="reveal-detail">${esc(r.detail)}</div>` : ''}
-      ${answerSectionHTML(q, {})}
+      ${answerSectionHTML(q, {masked:qMasked, showCover:false})}
       ${subjective && r.ok == null ? `<div class="reveal-self">
         <button class="btn btn-ghost btn-sm" id="self-ok">我答对了</button>
         <button class="btn btn-danger btn-sm" id="self-bad">我答错了</button></div>` : ''}
@@ -497,6 +514,7 @@ function renderQuizRun(root){
       </div>
     </div>`;
   bindQuizEvents(root, q, done);
+  bindMaskToggleEvents(root);
 }
 function bindQuizEvents(root, q, done){
   const z = S.quiz;
@@ -604,7 +622,7 @@ function renderWrong(root){
       <button class="btn btn-danger btn-sm" id="w-clear" ${items.length?'':'disabled'}>清空</button>
     </div>
     <div id="wrong-list"></div>`;
-  $('#w-mask').onchange = e => { S.reciteMasked = e.target.checked; renderRoute(); };
+  $('#w-mask').onchange = e => { S.reciteMasked = e.target.checked; S.cardMask = {}; renderRoute(); };
   $('#w-quiz').onclick = () => {
     const ids = items.map(w=>w.qid).filter(id=>qById[id]);
     if (!ids.length) return;
@@ -616,7 +634,7 @@ function renderWrong(root){
   if (!items.length){ wrap.innerHTML = `<div class="empty"><div class="big">☆</div>错题本是空的<br><span style="font-size:12.5px">在背题或做题模式中点击「☆ 加入错题本」即可收录</span></div>`; return; }
   wrap.innerHTML = items.map(w => {
     const q = qById[w.qid]; if (!q) return '';
-    const masked = S.reciteMasked && !S.reciteRevealed.has(q.id);
+    const masked = cardMasked(q.id, S.reciteMasked);
     const body = stemHTML(q, {}) + optionsHTML(q, {}) + judgeHTML(q, {});
     return `<div class="card card-q">
       <div class="q-head">${chipType(q)}${chipCh(q)}<span class="chip no-chip">第 ${q.no} 题</span><span class="src-tag">${esc(q.src||'')} · ${fmtTime(w.t)} 收录${w.src?`（${esc(w.src)}）`:''}</span></div>
@@ -626,10 +644,12 @@ function renderWrong(root){
       <div class="q-actions">
         <button class="btn btn-ghost btn-sm" data-remove="${q.id}">移出</button>
         <button class="btn btn-ghost btn-sm" data-master="${q.id}">✓ 标记已掌握</button>
+        ${maskToggleHTML(q, masked)}
         ${starBtnHTML(q)}
       </div></div>`;
   }).join('');
-  wrap.querySelectorAll('[data-peek]').forEach(b => b.onclick = () => { S.reciteRevealed.add(b.dataset.peek); renderRoute(); });
+  wrap.querySelectorAll('[data-peek]').forEach(b => b.onclick = () => { S.cardMask[b.dataset.peek] = false; renderRoute(); });
+  bindMaskToggleEvents(wrap);
   wrap.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => {
     const qid = b.dataset.remove;
     S.store.wrong = S.store.wrong.filter(w=>w.qid!==qid);
@@ -963,7 +983,7 @@ function renderSettings(root){
   $('#st-exp').onclick = exportSyncCode;
   $('#st-imp').onclick = importSyncCode;
   $('#st-auto').onchange = e => { S.store.settings.autoWrong = e.target.checked; saveStore(); toast('已保存'); };
-  $('#st-mask').onchange = e => { S.store.settings.maskDefault = e.target.checked; S.reciteMasked = e.target.checked; S.reciteRevealed.clear(); saveStore(); toast('已保存'); };
+  $('#st-mask').onchange = e => { S.store.settings.maskDefault = e.target.checked; S.reciteMasked = e.target.checked; S.cardMask = {}; saveStore(); toast('已保存'); };
   $('#st-reset').onclick = () => confirmBox('重置练习进度？','将清空做题记录与已掌握标记。', () => { S.store.progress = {}; S.store.mastered = {}; saveStore(); renderRoute(); toast('已重置'); });
 }
 
