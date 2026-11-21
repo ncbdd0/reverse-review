@@ -273,11 +273,14 @@ function stemHTML(q, {masked=false, quiz=false} = {}){
   return h;
 }
 function optionsHTML(q, {quiz=false, revealed=false, picked=null} = {}){
-  if (q.type !== 'single') return '';
+  if (q.type !== 'single' && q.type !== 'multi') return '';
   let h = '<div class="opts">';
   for (const [k, t] of q.options){
     let cls = 'opt';
-    if (quiz) { if (picked === k) cls += ' sel'; }
+    if (quiz) {
+      if (q.type === 'multi') { if ((picked||'').includes(k)) cls += ' sel'; }
+      else if (picked === k) cls += ' sel';
+    }
     if (revealed || !quiz) cls += ' locked';
     h += `<button class="${cls}" data-k="${k}"><span class="k">${k}</span><span>${esc(t)}</span></button>`;
   }
@@ -298,6 +301,7 @@ function answerText(q){
   switch(q.type){
     case 'blank': return blankAnswers(q).join('、');
     case 'single': return q.ans;
+    case 'multi': return q.ans;
     case 'judge': return q.ans;
     default: return '';
   }
@@ -310,6 +314,14 @@ function answerBlockHTML(q, {masked=false, revealed=false, showNote=true} = {}){
   if (q.type === 'single'){
     const optText = (q.options.find(o=>o[0]===q.ans)||['',''])[1];
     return `<div class="ans-text ans-mask-target"><b>${esc(q.ans)}</b>${optText?`　${esc(optText)}`:''}</div>`;
+  }
+  if (q.type === 'multi'){
+    const letters = (q.ans||'').split('');
+    const rows = letters.map(L => {
+      const t = (q.options.find(o=>o[0]===L)||['',''])[1];
+      return `<span class="ans-pill"><span class="n">${L}</span>${esc(t||'')}</span>`;
+    }).join('');
+    return `<div class="ans-blank-list ans-mask-target">${rows}</div>`;
   }
   if (q.type === 'judge'){
     return `<div class="ans-text ans-mask-target"><b>${esc(q.ans)}</b></div>`;
@@ -327,6 +339,7 @@ function answerSectionHTML(q, {masked=false, showCover=true} = {}){
   return `<div class="answer-section ${masked?'masked':''}">
     <div class="as-label">答案 · ${esc(typeLabel)}</div>
     ${answerBlockHTML(q, {showNote:true})}
+    ${q.exp ? `<div class="as-exp ans-mask-target"><span class="as-exp-lbl">解析</span>${esc(q.exp)}</div>` : ''}
     ${(masked && showCover) ? `<div class="ans-cover"><button data-peek="${q.id}">点击查看答案</button></div>` : ''}
   </div>`;
 }
@@ -478,7 +491,7 @@ function renderQuizRun(root){
   const z = S.quiz, done = z.revealed;
   const prog = Math.round(((z.idx) / z.ids.length) * 100);
   let inputHTML = '';
-  if (q.type === 'single') inputHTML = optionsHTML(q, {quiz:!done, revealed:done, picked:z.picked});
+  if (q.type === 'single' || q.type === 'multi') inputHTML = optionsHTML(q, {quiz:!done, revealed:done, picked:z.picked});
   else if (q.type === 'judge') inputHTML = judgeHTML(q, {quiz:!done, revealed:done, picked:z.picked});
   else if (q.type === 'short' || q.type === 'analysis' || q.type === 'calc') inputHTML = `<textarea class="answer-area" id="qa-area" placeholder="写下你的答案（可留空直接对照参考答案）">${esc(z.inputs[q.id]||'')}</textarea>`;
   let revealHTML = '';
@@ -519,7 +532,15 @@ function renderQuizRun(root){
 function bindQuizEvents(root, q, done){
   const z = S.quiz;
   if (!done){
-    root.querySelectorAll('.opt').forEach(b => b.onclick = () => { z.picked = b.dataset.k; renderRoute(); });
+    root.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+      if (q.type === 'multi'){
+        const k = b.dataset.k;
+        let p = (z.picked || '').split('').filter(x => x !== k);
+        if (!(z.picked || '').includes(k)) p.push(k);
+        z.picked = p.sort().join('');
+      } else z.picked = b.dataset.k;
+      renderRoute();
+    });
     root.querySelectorAll('.judge-btn').forEach(b => b.onclick = () => { z.picked = b.dataset.k; renderRoute(); });
     const area = $('#qa-area'); if (area) area.oninput = () => { z.inputs[q.id] = area.value; };
     $('#q-next').onclick = () => revealCurrent(root);
@@ -535,12 +556,16 @@ function bindQuizEvents(root, q, done){
   }
 }
 function collectAnswer(q){
-  if (q.type === 'single' || q.type === 'judge') return S.quiz.picked;
+  if (q.type === 'single' || q.type === 'judge' || q.type === 'multi') return S.quiz.picked;
   if (q.type === 'blank'){ return Array.from($$('#view .blank-in')).map(inp => inp.value); }
   const a = $('#qa-area'); return a ? a.value : '';
 }
 function checkAnswer(q, ans){
   if (q.type === 'single') return { ok: ans === q.ans, detail: ans ? `你的选择：${ans}` : '未作答' };
+  if (q.type === 'multi'){
+    const norm = s => (s||'').replace(/[^A-D]/g,'').split('').sort().join('');
+    return { ok: norm(ans) === norm(q.ans) && !!norm(ans), detail: ans ? `你的选择：${norm(ans)}` : '未作答' };
+  }
   if (q.type === 'judge') return { ok: ans === q.ans, detail: ans ? `你的判断：${ans}` : '未作答' };
   if (q.type === 'blank'){
     const correct = blankAnswers(q);
@@ -927,6 +952,10 @@ function renderHome(root){
         <div style="box-shadow:var(--sh-recessed-sm);border-radius:var(--radius-inputs);padding:16px 20px">
           <div style="font-weight:600;font-size:16px">模拟试卷</div>
           <div style="color:var(--text-sub);font-size:12px;margin-top:4px">限时自测 · ${S.bundle.questions.filter(q=>q.group==='mock').length} 题（第四五章）</div>
+        </div>
+        <div style="box-shadow:var(--sh-recessed-sm);border-radius:var(--radius-inputs);padding:16px 20px">
+          <div style="font-weight:600;font-size:16px">学习通相关</div>
+          <div style="color:var(--text-sub);font-size:12px;margin-top:4px">章节小测 · ${S.bundle.questions.filter(q=>q.group==='xt').length} 题（第1/3/4/5章）</div>
         </div>
       </div>
     </div>

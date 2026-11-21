@@ -128,7 +128,7 @@ input,textarea,select{font-family:inherit;font-size:inherit;color:inherit}
 .card-q{position:relative}
 .q-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
 .chip{font-size:var(--text-label);letter-spacing:var(--tracking-label);border-radius:var(--radius-pills);padding:5px 14px;white-space:nowrap;color:var(--text-sub);box-shadow:var(--sh-recessed-sm);background:var(--color-base)}
-.chip.type-blank,.chip.type-single,.chip.type-judge,.chip.type-short,.chip.type-analysis,.chip.type-calc{color:var(--color-blurple)}
+.chip.type-blank,.chip.type-single,.chip.type-multi,.chip.type-judge,.chip.type-short,.chip.type-analysis,.chip.type-calc{color:var(--color-blurple)}
 .chip.no-chip{color:var(--text-sub)}
 .stem{white-space:pre-wrap;word-break:break-word;font-size:var(--text-body-lg);line-height:var(--leading-body);color:var(--text-ink)}
 .codeblock{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13px;line-height:1.6;background:var(--color-base);border-radius:var(--radius-inputs);box-shadow:var(--sh-recessed);padding:14px 18px;margin:16px 0;white-space:pre-wrap;word-break:break-all;color:var(--text-ink)}
@@ -149,6 +149,8 @@ input,textarea,select{font-family:inherit;font-size:inherit;color:inherit}
 .ans-pill.good{color:var(--color-mint)}
 .ans-pill.bad{color:var(--color-coral)}
 .answer-section .q-note{margin-top:14px}
+.as-exp{margin-top:14px;padding-top:12px;font-size:13px;color:var(--text-sub);line-height:1.75;white-space:pre-wrap;word-break:break-word}
+.as-exp .as-exp-lbl{display:inline-block;font-size:11px;letter-spacing:.1em;color:var(--color-blurple);margin-right:10px;font-weight:600}
 .masked .ans-mask-target{filter:blur(7px);pointer-events:none;user-select:none}
 .ans-cover{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:2}
 .ans-cover button{background:var(--color-base);color:var(--color-blurple);border-radius:var(--radius-pills);padding:10px 24px;font-size:var(--text-body);font-weight:500;box-shadow:var(--sh-raised);transition:box-shadow .2s}
