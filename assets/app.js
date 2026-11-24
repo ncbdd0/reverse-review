@@ -479,7 +479,7 @@ function renderQuizSetup(root){
       return true;
     });
     if (quizFilter.shuffle) pool = pool.slice().sort(() => Math.random() - 0.5);
-    if (quizFilter.count !== 'all') pool = pool.slice(0, parseInt(quizFilter.count, 10));
+    { const cnt = parseInt(quizFilter.count, 10); if (quizFilter.count !== 'all' && cnt > 0) pool = pool.slice(0, cnt); }
     if (!pool.length){ toast('没有符合条件的题目', true); return; }
     S.quiz = { ids: pool.map(q=>q.id), idx:0, picked:null, inputs:{}, revealed:false, results:[], scope:quizFilter.scope };
     location.hash = '#/quiz'; renderRoute();
@@ -956,6 +956,10 @@ function renderHome(root){
         <div style="box-shadow:var(--sh-recessed-sm);border-radius:var(--radius-inputs);padding:16px 20px">
           <div style="font-weight:600;font-size:16px">学习通相关</div>
           <div style="color:var(--text-sub);font-size:12px;margin-top:4px">章节小测 · ${S.bundle.questions.filter(q=>q.group==='xt').length} 题（第1/3/4/5章）</div>
+        </div>
+        <div style="box-shadow:var(--sh-recessed-sm);border-radius:var(--radius-inputs);padding:16px 20px">
+          <div style="font-weight:600;font-size:16px">知途好课</div>
+          <div style="color:var(--text-sub);font-size:12px;margin-top:4px">24网安模拟 · ${S.bundle.questions.filter(q=>q.group==='zt').length} 题（含复合大题）</div>
         </div>
       </div>
     </div>
