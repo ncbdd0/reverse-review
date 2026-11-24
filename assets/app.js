@@ -708,7 +708,7 @@ function renderDocs(root){
   const ups = S.store.uploadsMeta.slice().sort((a,b)=>b.addedAt-a.addedAt);
   root.innerHTML = `
     <div class="page-title">文档中心 · 知识库</div>
-    <div class="page-sub">在线阅读将在新标签页中打开；也可下载到本地，或上传你自己的文档保存在站内（≤150KB 的文档会随账号云同步）。</div>
+    <div class="page-sub">点「在线阅读」即可阅读（新页面打开；若浏览器拦截会自动切换到当前页）；下载会先解密再给出保存链接。也可上传你自己的文档（≤150KB 随账号云同步）。</div>
     <div class="section-h">内置资料 <span class="hint">加密存放 · 解锁后可读 · 点击在线阅读将打开新标签页</span></div>
     <div class="doc-grid">${docs.map((d,i)=>{
       const isDocx = d.name.toLowerCase().endsWith('.docx');
@@ -771,17 +771,13 @@ async function downloadBuiltIn(idx){
   try {
     toast('解密并准备下载…');
     const { bytes, name } = await downloadBuiltInBytes(idx);
-    const url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
-    const a = document.createElement('a'); a.href = url; a.download = name; a.click();
-    setTimeout(()=>URL.revokeObjectURL(url), 4000);
-    toast('已开始下载 ✓');
+    offerDownloadModal(bytes, name, 'application/pdf', 'doc=' + idx);
   } catch(e){ toast('下载失败：'+e.message, true); }
 }
 async function downloadUploaded(id){
   const rec = await idbGet(id); if (!rec) return toast('文件不存在', true);
-  const url = URL.createObjectURL(rec.blob);
-  const a = document.createElement('a'); a.href = url; a.download = rec.name; a.click();
-  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  const buf = new Uint8Array(await rec.blob.arrayBuffer());
+  offerDownloadModal(buf, rec.name, rec.type || 'application/octet-stream', 'up=' + id);
 }
 async function openUploaded(id){
   const rec = await idbGet(id); if (!rec) return toast('文件不存在（可能来自另一台设备，需在本机重新上传）', true);
@@ -801,7 +797,36 @@ async function openUploaded(id){
 /* ================= PDF 阅读器（独立页面，支持新标签页打开） ================= */
 const reader = { pdf:null, page:1, rendering:false, pending:new Set(), observer:null, token:0 };
 function readerURL(params){ return new URL('#/reader?' + params, location.href).href; }
-function openReaderTab(params){ window.open(readerURL(params), '_blank'); }
+/* 打开阅读：优先新标签页；弹窗被拦截（微信/内嵌浏览器）时自动降级为当前页打开 */
+function openReaderTab(params){
+  let w = null;
+  try { w = window.open(readerURL(params), '_blank'); } catch(e){ w = null; }
+  if (!w){
+    if (location.hash === '#/reader?' + params) renderRoute();
+    else location.hash = '#/reader?' + params;
+  }
+}
+/* 下载就绪弹层：用真实 <a> 链接让用户直接点击，规避弹窗拦截与异步手势失效 */
+let dlURLToRevoke = null;
+function offerDownloadModal(bytes, name, mime, readerParams){
+  if (dlURLToRevoke) { try { URL.revokeObjectURL(dlURLToRevoke); } catch(e){} }
+  const url = URL.createObjectURL(new Blob([bytes], {type: mime || 'application/octet-stream'}));
+  dlURLToRevoke = url;
+  const canPreview = readerParams && (name.toLowerCase().endsWith('.pdf') || name.toLowerCase().endsWith('.docx'));
+  modal(`<div style="text-align:center;padding:8px 4px">
+    <div style="font-size:36px;line-height:1;margin-bottom:14px">📄</div>
+    <h3 style="font-size:17px;margin-bottom:6px;word-break:break-all">${esc(name)}</h3>
+    <p style="color:var(--text-sub);font-size:13px;margin-bottom:20px">已解密就绪 · ${fmtSize(bytes.length)}</p>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <a class="btn btn-primary" href="${url}" download="${esc(name)}" target="_blank" rel="noopener" style="text-decoration:none">⬇ 保存 / 打开文件</a>
+      ${canPreview ? `<button class="btn btn-ghost" id="dl-preview">👁 在线预览（新页面）</button>` : ''}
+    </div>
+    <button class="btn btn-ghost btn-sm" id="dl-close" style="margin-top:16px">关闭</button>
+  </div>`);
+  $('#dl-close').onclick = () => { closeModal(); try { URL.revokeObjectURL(url); } catch(e){} if (dlURLToRevoke === url) dlURLToRevoke = null; };
+  const pv = $('#dl-preview');
+  if (pv) pv.onclick = () => { closeModal(); openReaderTab(readerParams); };
+}
 async function readBuiltInBytes(idx){
   const d = S.bundle.docs[idx];
   const enc = await fetchJSON(d.file);
@@ -817,9 +842,11 @@ async function renderReaderFull(root, _params){
       const idx = parseInt(qp.get('doc'), 10);
       const d = S.bundle.docs[idx];
       if (!d) throw new Error('文档不存在');
+      window.__rdParams = 'doc=' + idx;
       const { bytes, name } = await readBuiltInBytes(idx);
       openInReader(root, name, bytes);
     } else if (qp.has('up')){
+      window.__rdParams = 'up=' + qp.get('up');
       const rec = await idbGet(qp.get('up'));
       if (!rec) throw new Error('文件不存在（可能来自另一台设备）');
       const bytes = new Uint8Array(await rec.blob.arrayBuffer());
@@ -846,7 +873,7 @@ async function mountDocxReader(root, name, bytes){
       <div class="reader-pages docx-view" id="rd-docx"><div class="empty" style="box-shadow:none"><div class="big">⋯</div>正在转换文档…</div></div>
     </div>`;
   $('#rd-back').onclick = () => { if (history.length > 1) history.back(); else { location.hash = '#/docs'; renderRoute(); } };
-  $('#rd-dl').onclick = () => { const url = URL.createObjectURL(new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),4000); };
+  $('#rd-dl').onclick = () => offerDownloadModal(bytes, name, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', window.__rdParams || null);
   const session = ++reader.token;
   const closed = () => reader.token !== session || !document.body.contains($('#rd-docx'));
   try {
@@ -875,7 +902,7 @@ async function mountReader(root, name, bytes){
       <div class="reader-pages" id="rd-pages"></div>
     </div>`;
   $('#rd-back').onclick = () => { if (history.length > 1) history.back(); else { location.hash = '#/docs'; renderRoute(); } };
-  $('#rd-dl').onclick = () => { const url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'})); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),4000); };
+  $('#rd-dl').onclick = () => offerDownloadModal(bytes, name, 'application/pdf', window.__rdParams || null);
   const indEl = $('#rd-ind'), pagesEl = $('#rd-pages');
   const session = ++reader.token;
   const closed = () => reader.token !== session || !indEl.isConnected;
