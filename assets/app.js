@@ -988,6 +988,10 @@ function renderHome(root){
           <div style="font-weight:600;font-size:16px">知途好课</div>
           <div style="color:var(--text-sub);font-size:12px;margin-top:4px">24网安模拟 · ${S.bundle.questions.filter(q=>q.group==='zt').length} 题（含复合大题）</div>
         </div>
+        <div style="box-shadow:var(--sh-recessed-sm);border-radius:var(--radius-inputs);padding:16px 20px">
+          <div style="font-weight:600;font-size:16px">实验</div>
+          <div style="color:var(--text-sub);font-size:12px;margin-top:4px">七个实验 · ${S.bundle.questions.filter(q=>q.group==='sy').length} 题（知识点+预测题）</div>
+        </div>
       </div>
     </div>
     <div class="card">
