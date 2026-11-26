@@ -245,6 +245,7 @@ input,textarea,select{font-family:inherit;font-size:inherit;color:inherit}
 .doc-ico{width:44px;height:44px;border-radius:var(--radius-inputs);display:flex;align-items:center;justify-content:center;font-size:var(--text-label);font-weight:600;letter-spacing:.05em;color:var(--text-sub);box-shadow:var(--sh-recessed-sm)}
 .doc-ico.pdf{color:var(--color-coral)}
 .doc-ico.txt{color:var(--color-blurple)}
+.doc-ico.ppt{color:#b8860b}
 .doc-ico.img{color:#2ba39b}
 .doc-name{font-size:var(--text-body);font-weight:500;line-height:1.5;word-break:break-all;color:var(--text-ink)}
 .doc-meta{font-size:var(--text-label);color:var(--text-sub);letter-spacing:.02em}

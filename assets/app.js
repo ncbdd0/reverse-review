@@ -711,19 +711,24 @@ function renderDocs(root){
     <div class="page-sub">点「在线阅读」即可阅读（新页面打开；若浏览器拦截会自动切换到当前页）；下载会先解密再给出保存链接。也可上传你自己的文档（≤150KB 随账号云同步）。</div>
     <div class="section-h">内置资料 <span class="hint">加密存放 · 解锁后可读 · 点击在线阅读将打开新标签页</span></div>
     <div class="doc-grid">${docs.map((d,i)=>{
-      const isDocx = d.name.toLowerCase().endsWith('.docx');
+      const nm = d.name.toLowerCase();
+      const isDocx = nm.endsWith('.docx');
+      const isPptx = nm.endsWith('.pptx') || nm.endsWith('.ppt');
+      const kind = isDocx ? 'txt' : (isPptx ? 'ppt' : 'pdf');
+      const label = isDocx ? 'DOCX' : (isPptx ? 'PPTX' : 'PDF');
+      const meta = isPptx ? '课件原件 · 下载后用PowerPoint打开' : (isDocx ? '知识点文档' : '课件资料');
       return `
       <div class="doc-card">
-        <div class="doc-ico ${isDocx?'txt':'pdf'}">${isDocx?'DOCX':'PDF'}</div>
+        <div class="doc-ico ${kind}">${label}</div>
         <div class="doc-name">${esc(d.name)}</div>
-        <div class="doc-meta">${fmtSize(d.size)} · ${isDocx?'知识点文档':'课件资料'}</div>
-        <div class="doc-actions"><button class="btn btn-primary btn-sm" data-read="${i}">在线阅读</button><button class="btn btn-ghost btn-sm" data-dl="${i}">下载</button></div>
+        <div class="doc-meta">${fmtSize(d.size)} · ${meta}</div>
+        <div class="doc-actions">${isPptx ? '' : `<button class="btn btn-primary btn-sm" data-read="${i}">在线阅读</button>`}<button class="btn btn-ghost btn-sm" data-dl="${i}">下载</button></div>
       </div>`;}).join('')}</div>
     <div class="section-h">我的上传 <span class="hint">保存在本设备；小文件自动云同步</span></div>
-    <div class="filterbar"><button class="btn btn-primary btn-sm" id="up-btn">＋ 上传文档</button><input type="file" id="up-input" multiple accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg,.webp" style="display:none"></div>
+    <div class="filterbar"><button class="btn btn-primary btn-sm" id="up-btn">＋ 上传文档</button><input type="file" id="up-input" multiple accept=".pdf,.docx,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp" style="display:none"></div>
     <div class="doc-grid">${ups.length?ups.map(u=>`
       <div class="doc-card">
-        <div class="doc-ico ${u.type&&u.type.startsWith('image')?'img':(u.name.toLowerCase().endsWith('.pdf')?'pdf':'txt')}">${u.name.toLowerCase().endsWith('.pdf')?'PDF':(u.type&&u.type.startsWith('image')?'IMG':'TXT')}</div>
+        <div class="doc-ico ${u.type&&u.type.startsWith('image')?'img':(u.name.toLowerCase().endsWith('.pdf')?'pdf':(u.name.toLowerCase().endsWith('.pptx')||u.name.toLowerCase().endsWith('.ppt')?'ppt':'txt'))}">${u.name.toLowerCase().endsWith('.pdf')?'PDF':(u.name.toLowerCase().endsWith('.pptx')||u.name.toLowerCase().endsWith('.ppt')?'PPTX':(u.type&&u.type.startsWith('image')?'IMG':'TXT'))}</div>
         <div class="doc-name">${esc(u.name)}</div>
         <div class="doc-meta">${fmtSize(u.size)} · ${fmtTime(u.addedAt)}上传 · <span class="doc-sync ${u.syncData?'cloud':'local'}">${u.syncData?'已同步':'仅本设备'}</span></div>
         <div class="doc-actions"><button class="btn btn-primary btn-sm" data-uopen="${u.id}">打开</button><button class="btn btn-ghost btn-sm" data-udl="${u.id}">下载</button><button class="btn btn-danger btn-sm" data-udel="${u.id}">删除</button></div>
@@ -736,6 +741,7 @@ function renderDocs(root){
     const rec = await idbGet(b.dataset.uopen);
     const nm = (rec?.name || '').toLowerCase();
     if (nm.endsWith('.pdf') || nm.endsWith('.docx')) openReaderTab('up=' + b.dataset.uopen);
+    else if (nm.endsWith('.pptx') || nm.endsWith('.ppt')) downloadUploaded(b.dataset.uopen);
     else openUploaded(b.dataset.uopen);
   });
   $$('[data-udl]').forEach(b => b.onclick = () => downloadUploaded(b.dataset.udl));
@@ -767,11 +773,19 @@ async function downloadBuiltInBytes(idx){
   const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv:b64d(enc.iv)}, S.contentKey, b64d(enc.data));
   return { bytes: new Uint8Array(pt), name: d.name };
 }
+function mimeOf(name){
+  const n = (name || '').toLowerCase();
+  if (n.endsWith('.pdf')) return 'application/pdf';
+  if (n.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if (n.endsWith('.pptx')) return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+  if (n.endsWith('.ppt')) return 'application/vnd.ms-powerpoint';
+  return 'application/octet-stream';
+}
 async function downloadBuiltIn(idx){
   try {
     toast('解密并准备下载…');
     const { bytes, name } = await downloadBuiltInBytes(idx);
-    offerDownloadModal(bytes, name, 'application/pdf', 'doc=' + idx);
+    offerDownloadModal(bytes, name, mimeOf(name), 'doc=' + idx);
   } catch(e){ toast('下载失败：'+e.message, true); }
 }
 async function downloadUploaded(id){
@@ -857,7 +871,12 @@ async function renderReaderFull(root, _params){
   }
 }
 async function openInReader(root, name, bytes){
-  if (name.toLowerCase().endsWith('.docx')) return mountDocxReader(root, name, bytes);
+  const nm = (name || '').toLowerCase();
+  if (nm.endsWith('.pptx') || nm.endsWith('.ppt')){
+    root.innerHTML = `<div class="page-title">文档阅读</div><div class="empty"><div class="big">▤</div>PPTX 课件暂不支持在线阅读<br><span style="font-size:12.5px">请返回文档中心点击「下载」，用 PowerPoint / WPS 打开<br>（同名 PDF 版本可直接在线阅读）</span></div>`;
+    return;
+  }
+  if (nm.endsWith('.docx')) return mountDocxReader(root, name, bytes);
   return mountReader(root, name, bytes);
 }
 async function mountDocxReader(root, name, bytes){
